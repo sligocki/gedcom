@@ -53,9 +53,6 @@ def date2year(date):
   if date:
     return date.split()[-1]
 
-def asciify(string):
-  return unicode(string, "latin-1", "replace").encode("ascii", "replace")
-
 class Person:
   def __init__(self, record):
     self.record = record
@@ -66,10 +63,7 @@ class Person:
     return self.record.rec_id
 
   def name(self):
-    return self.record.GetFields("NAME").replace("/", "")
-
-  def ascii_name(self):
-    return asciify(self.name())
+    return unicode(self.record.GetFields("NAME").replace("/", ""), "utf-8")
 
   def sex(self):
     return self.record.GetFields("SEX")
@@ -184,7 +178,7 @@ def people2dot(people, dot_name):
   dot = Digraph(name=dot_name)
 
   for person in people:
-    dot.node(person.id(), label=person.ascii_name())
+    dot.node(person.id(), label=person.name())
 
   for person in people:
     for parent in person.parents:
@@ -201,7 +195,7 @@ def draw_relationships(person1, person2):
       for line in person_mrca:
         people.update(line)
 
-  people2dot(people, "%s_%s" % (person1.ascii_name(), person2.ascii_name()))
+  people2dot(people, "%s_%s" % (person1.name(), person2.name()))
 
 
 def find_person(name, people):
