@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import collections
 
 from graphviz import Digraph
@@ -127,6 +129,18 @@ def get_ancestors(person):
     ancestors.update(get_ancestors(parent))
   return ancestors
 
+def get_descendants(person):
+  descendants = set([person])
+  for parent in person.children:
+    descendants.update(get_descendants(parent))
+  return descendants
+
+def get_relatives(person):
+  relatives = set()
+  for person in get_ancestors(person):
+    relatives.update(get_descendants(person))
+  return relatives
+
 def find_common_ancestors(person1, person2):
   a1 = get_ancestors(person1)
   a2 = get_ancestors(person2)
@@ -187,35 +201,67 @@ def people2dot(people, dot_name):
 
   dot.view()
 
-def draw_relationships(person1, person2):
-  # Collect set of all people between person1 and person2.
+def relationships2people(relationships):
   people = set()
-  for mrca in find_relationship(person1, person2):
+  for mrca in relationships:
     for person_mrca in mrca:
       for line in person_mrca:
         people.update(line)
+  return people
 
+def draw_relationships(person1, person2):
+  # Collect set of all people between person1 and person2.
+  people = relationships2people(find_relationship(person1, person2))
   people2dot(people, "%s_%s" % (person1.name(), person2.name()))
 
 
 def find_person(name, people):
-  for person_id in people:
-    person = people[person_id]
+  for person in people.values():
     if person.name() == name:
       return person
   raise Exception, ("No person named %s" % name)
+
+def find_prefix(prefix, people):
+  filtered = []
+  for person in people.values():
+    if person.name().startswith(prefix):
+      filtered.append(person)
+  return filtered
+
+
+def draw_dna_relationships(people, filter_person=None):
+  """Draw DOT plot of relationships between home (prefixed with 🏠) person and
+  all DNA matches (prefixed with 🔬)."""
+  home_person, = find_prefix(u"🏠", people)
+  dna_matches = find_prefix(u"🔬", people)
+
+  filtered_people = set()
+  for match in dna_matches:
+    filtered_people.update(relationships2people(find_relationship(home_person,
+                                                                  match)))
+
+  # Find who has no parents (root ancestors).
+  #for person in filtered_people:
+  #  if not set(person.parents).intersection(filtered_people):
+  #    print person
+
+  if filter_person:
+    filtered_people = get_relatives(filter_person).intersection(
+        filtered_people)
+
+  people2dot(filtered_people, "DNA_Matches")
 
 
 import pprint
 import sys
 ged_file = file(sys.argv[1])
-name1 = sys.argv[2]
-name2 = sys.argv[3]
+name = unicode(sys.argv[2])
 
 records = lex(ged_file)
 people = parse(records)
 
 #pprint.pprint(find_relationship(people[id1], people[id2]))
-draw_relationships(find_person(name1, people),
-                   find_person(name2, people))
+#draw_relationships(find_person(name1, people),
+#                   find_person(name2, people))
 #people2dot(people.values(), "all")
+draw_dna_relationships(people, find_person(name, people))
