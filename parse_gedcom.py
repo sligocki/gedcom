@@ -77,7 +77,8 @@ class Person:
     return self.record.GetFields("DEAT", "DATE")
 
   def __repr__(self):
-    return "%s (%s - %s)" % (self.name(), date2year(self.birthdate()),
+    return "%s (%s - %s)" % (self.name().encode("ascii", "replace"),  # TODO: Remove ASCII encode.
+                             date2year(self.birthdate()),
                              date2year(self.deathdate()))
 
 def parse(records):
@@ -229,8 +230,9 @@ def find_prefix(prefix, people):
   return filtered
 
 
-def draw_dna_relationships(people, filter_person=None):
-  """Draw DOT plot of relationships between home (prefixed with 🏠) person and
+def subset_dna(people):
+  """Filter people so that it only includes people who are directly on
+  relationship links between the home person (prefixed with 🏠) and
   all DNA matches (prefixed with 🔬)."""
   home_person, = find_prefix(u"🏠", people)
   dna_matches = find_prefix(u"🔬", people)
@@ -239,29 +241,43 @@ def draw_dna_relationships(people, filter_person=None):
   for match in dna_matches:
     filtered_people.update(relationships2people(find_relationship(home_person,
                                                                   match)))
+  return filtered_people
 
-  # Find who has no parents (root ancestors).
-  #for person in filtered_people:
-  #  if not set(person.parents).intersection(filtered_people):
-  #    print person
+def filter_relatives(people, filter_person):
+  """Filter people to only include relatives of filter_person."""
+  return get_relatives(filter_person).intersection(people)
 
-  if filter_person:
-    filtered_people = get_relatives(filter_person).intersection(
-        filtered_people)
-
-  people2dot(filtered_people, "DNA_Matches")
+def find_roots(people):
+  """Find who has no parents (root ancestors)."""
+  filtered_people = set()
+  for person in people:
+    if not set(person.parents).intersection(people):
+      filtered_people.add(person)
+  return filtered_people
 
 
 import pprint
 import sys
 ged_file = file(sys.argv[1])
-name = unicode(sys.argv[2])
 
 records = lex(ged_file)
 people = parse(records)
 
+# Find all relationships between two people:
 #pprint.pprint(find_relationship(people[id1], people[id2]))
+# Draw them:
 #draw_relationships(find_person(name1, people),
 #                   find_person(name2, people))
+
+# Make a DOT graph of all people in GEDCOM:
 #people2dot(people.values(), "all")
-draw_dna_relationships(people, find_person(name, people))
+
+# Make a DOT graph only people allong DNA relationships:
+#name = unicode(sys.argv[2])
+#people2dot(filter_relatives(subset_dna(people),
+#                            find_person(name, people)),
+#           "DNA_Matches")
+
+# Find all DNA MRCAs (MRCAs between home person and a DNA match
+# who doesn't have an ancestor who's also an MRCA for another match)
+pprint.pprint(find_roots(subset_dna(people)))
