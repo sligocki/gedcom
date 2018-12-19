@@ -255,6 +255,15 @@ def find_roots(people):
       filtered_people.add(person)
   return filtered_people
 
+def find_not_in(people, filter):
+  """Find minimum people in |people| not in |filter|."""
+  new_people = set()
+  for person in people.intersection(filter):
+    new_people.update(set(person.parents) - filter)
+    if len(person.parents) < 2:
+     new_people.add("[Unknown parent(s) of %r]" % person)
+  return new_people
+
 
 import pprint
 import sys
@@ -262,6 +271,7 @@ ged_file = file(sys.argv[1])
 
 records = lex(ged_file)
 people = parse(records)
+home_person, = find_prefix(u"🏠", people)
 
 # Find all relationships between two people:
 #pprint.pprint(find_relationship(people[id1], people[id2]))
@@ -273,11 +283,18 @@ people = parse(records)
 #people2dot(people.values(), "all")
 
 # Make a DOT graph only people allong DNA relationships:
-#name = unicode(sys.argv[2])
-#people2dot(filter_relatives(subset_dna(people),
-#                            find_person(name, people)),
-#           "DNA_Matches")
+name = unicode(sys.argv[2])
+people2dot(filter_relatives(subset_dna(people),
+                            find_person(name, people)),
+           name)
 
 # Find all DNA MRCAs (MRCAs between home person and a DNA match
 # who doesn't have an ancestor who's also an MRCA for another match)
 pprint.pprint(find_roots(subset_dna(people)))
+
+# Find all ancestors in GEDCOM which are not DNA connected.
+#pprint.pprint(find_not_in(get_ancestors(home_person),
+#                          subset_dna(people)))
+
+# Find all brick walls.
+#pprint.pprint(find_roots(get_ancestors(home_person)))
